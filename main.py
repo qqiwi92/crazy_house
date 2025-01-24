@@ -1,132 +1,85 @@
+
 import pickle
-from flask import Flask, request, jsonify
+from collections import Counter
 
-class Doctor:
-    def __init__(self, last_name, first_name, office, specialty, patients=None):
-        self.last_name = last_name
-        self.first_name = first_name
-        self.office = office
-        self.specialty = specialty
-        self.patients = patients if patients else []
+DB_FILE = "clinic_db.pkl"
 
-    def __repr__(self):
-        return f"{self.first_name} {self.last_name}, {self.specialty}, Office: {self.office}"
+def load_data():
+    try:
+        with open(DB_FILE, "rb") as file:
+            return pickle.load(file)
+    except FileNotFoundError:
+        return []
 
-class ClinicDatabase:
-    def __init__(self, filename):
-        self.filename = filename
-        try:
-            with open(filename, 'rb') as file:
-                self.doctors = pickle.load(file)
-        except FileNotFoundError:
-            self.doctors = []
+def save_data(data):
+    with open(DB_FILE, "wb") as file:
+        pickle.dump(data, file)
 
-    def save(self):
-        with open(self.filename, 'wb') as file:
-            pickle.dump(self.doctors, file)
+def add_doctor(data, surname, name, room, specialty, patients):
+    if len(patients) > 10:
+        print("У врача не может быть более 10 пациентов.")
+        return
+    data.append({
+        "surname": surname,
+        "name": name,
+        "room": room,
+        "specialty": specialty,
+        "patients": patients
+    })
+    save_data(data)
 
-    def add_doctor(self, doctor):
-        self.doctors.append(doctor)
-        self.save()
+def delete_doctor(data, surname, name):
+    updated_data = [doc for doc in data if not (doc["surname"] == surname and doc["name"] == name)]
+    save_data(updated_data)
 
-    def remove_doctor(self, last_name, first_name):
-        self.doctors = [d for d in self.doctors if d.last_name != last_name or d.first_name != first_name]
-        self.save()
+def edit_doctor(data, surname, name, updated_info):
+    for doctor in data:
+        if doctor["surname"] == surname and doctor["name"] == name:
+            doctor.update(updated_info)
+            break
+    save_data(data)
 
-    def edit_doctor(self, last_name, first_name, **kwargs):
-        for doctor in self.doctors:
-            if doctor.last_name == last_name and doctor.first_name == first_name:
-                for key, value in kwargs.items():
-                    setattr(doctor, key, value)
-                self.save()
-                break
+def list_doctors_by_specialty(data, specialty):
+    return [doc for doc in data if doc["specialty"] == specialty]
 
-    def get_doctors_by_specialty(self, specialty):
-        return [d for d in self.doctors if d.specialty == specialty]
+def list_doctors_by_patient(data, patient_surname):
+    return [doc for doc in data if any(patient["surname"] == patient_surname for patient in doc["patients"])]
 
-    def get_doctors_by_patient(self, patient_last_name):
-        return [d for d in self.doctors if any(p[0] == patient_last_name for p in d.patients)]
+def list_doctors_by_room(data, room):
+    return sorted([doc for doc in data if doc["room"] == room], key=lambda x: x["surname"])
 
-    def get_doctors_by_office(self, office):
-        return sorted([d for d in self.doctors if d.office == office], key=lambda x: x.last_name)
+def list_rooms_by_specialty(data, specialty):
+    return list(set(doc["room"] for doc in data if doc["specialty"] == specialty))
 
-    def get_offices_by_specialty(self, specialty):
-        return list(set(d.office for d in self.doctors if d.specialty == specialty))
+def list_doctors_by_patient_count(data):
+    return sorted([doc for doc in data if len(doc["patients"]) > 5], key=lambda x: len(x["patients"]), reverse=True)
 
-    def get_top_doctors_by_patient_count(self, threshold):
-        return sorted(
-            [d for d in self.doctors if len(d.patients) > threshold],
-            key=lambda x: (-len(x.patients), x.specialty)
-        )
+def top_specialties_by_patients(data):
+    specialty_counter = Counter()
+    for doc in data:
+        specialty_counter[doc["specialty"]] += len(doc["patients"])
+    return specialty_counter.most_common(3)
 
-    def get_top_specialties(self, top_n):
-        specialty_counts = {}
-        for doctor in self.doctors:
-            specialty_counts[doctor.specialty] = specialty_counts.get(doctor.specialty, 0) + len(doctor.patients)
-        return sorted(specialty_counts.items(), key=lambda x: -x[1])[:top_n]
+def doctors_with_least_clients(data):
+    specialties = set(doc["specialty"] for doc in data)
+    result = []
+    for specialty in specialties:
+        filtered_docs = [doc for doc in data if doc["specialty"] == specialty]
+        filtered_docs.sort(key=lambda x: len(x["patients"]))
+        result.extend(filtered_docs)
+    return sorted(result, key=lambda x: len(x["patients"]))
 
-    def get_least_busy_doctors(self):
-        specialties = {}
-        for doctor in self.doctors:
-            if doctor.specialty not in specialties:
-                specialties[doctor.specialty] = []
-            specialties[doctor.specialty].append(doctor)
+if __name__ == "__main__":
+    data = load_data()
+    if not data:
+        for i in range(1, 31):
+            add_doctor(data, f"Фамилия{i}", f"Имя{i}", i % 10 + 1, f"Специальность{i % 5 + 1}",
+                       [{"surname": f"Пациент{j}", "diagnosis": f"Диагноз{j}"} for j in range(i % 10)])
 
-        result = []
-        for doctors in specialties.values():
-            result.extend(sorted(doctors, key=lambda d: len(d.patients)))
-        return result
-
-# Flask setup
-app = Flask(__name__)
-db = ClinicDatabase('doctors.pkl')
-
-@app.route('/add', methods=['POST'])
-def add_doctor():
-    data = request.json
-    doctor = Doctor(data['last_name'], data['first_name'], data['office'], data['specialty'], data.get('patients', []))
-    db.add_doctor(doctor)
-    return jsonify({'message': 'Doctor added successfully'})
-
-@app.route('/remove', methods=['DELETE'])
-def remove_doctor():
-    data = request.json
-    db.remove_doctor(data['last_name'], data['first_name'])
-    return jsonify({'message': 'Doctor removed successfully'})
-
-@app.route('/edit', methods=['PUT'])
-def edit_doctor():
-    data = request.json
-    db.edit_doctor(data['last_name'], data['first_name'], **data.get('updates', {}))
-    return jsonify({'message': 'Doctor updated successfully'})
-
-@app.route('/specialty/<specialty>', methods=['GET'])
-def get_by_specialty(specialty):
-    return jsonify([str(d) for d in db.get_doctors_by_specialty(specialty)])
-
-@app.route('/patient/<last_name>', methods=['GET'])
-def get_by_patient(last_name):
-    return jsonify([str(d) for d in db.get_doctors_by_patient(last_name)])
-
-@app.route('/office/<int:office>', methods=['GET'])
-def get_by_office(office):
-    return jsonify([str(d) for d in db.get_doctors_by_office(office)])
-
-@app.route('/offices/<specialty>', methods=['GET'])
-def get_offices(specialty):
-    return jsonify(db.get_offices_by_specialty(specialty))
-
-@app.route('/top-specialties', methods=['GET'])
-def top_specialties():
-    return jsonify(db.get_top_specialties(3))
-
-@app.route('/top-doctors', methods=['GET'])
-def top_doctors():
-    return jsonify([str(d) for d in db.get_top_doctors_by_patient_count(5)])
-
-@app.route('/least-busy', methods=['GET'])
-def least_busy():
-    return jsonify([str(d) for d in db.get_least_busy_doctors()])
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    print("Врачи специальности 'Специальность1':", list_doctors_by_specialty(data, "Специальность1"))
+    print("Врачи, у которых лечился Пациент3:", list_doctors_by_patient(data, "Пациент3"))
+    print("Врачи кабинета 2:", list_doctors_by_room(data, 2))
+    print("Кабинеты для специальности 'Специальность2':", list_rooms_by_specialty(data, "Специальность2"))
+    print("Врачи с более чем 5 пациентами:", list_doctors_by_patient_count(data))
+    print("Топ-3 специальностей по пациентам:", top_specialties_by_patients(data))
+    print("Врачи с наименьшим числом пациентов в каждой области:", doctors_with_least_clients(data))
