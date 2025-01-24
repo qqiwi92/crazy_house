@@ -1,12 +1,13 @@
 export interface Patient {
-  lastName: string;
+  last_name: string;
   diagnosis: string;
 }
 
 export interface Doctor {
-  lastName: string;
-  firstName: string;
-  office: number;
-  specialty: string;
-  patients: Patient[];
-}
+    surname: string;
+    name: string;
+    room: string;
+    specialty: string;
+    patients: Patient[];
+  }
+  

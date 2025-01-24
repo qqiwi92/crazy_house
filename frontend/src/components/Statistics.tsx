@@ -1,29 +1,37 @@
-import type React from "react"
-import { useState, useEffect } from "react"
-import { api } from "../lib/api"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { api } from "../lib/api";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Doctor } from "@/lib/types";
 
 const Statistics: React.FC = () => {
-  const [topSpecialties, setTopSpecialties] = useState<[string, number][]>([])
-  const [topDoctors, setTopDoctors] = useState<string[]>([])
-  const [leastBusyDoctors, setLeastBusyDoctors] = useState<string[]>([])
+  const [topSpecialties, setTopSpecialties] = useState<[string, number][]>([]);
+  const [topDoctors, setTopDoctors] = useState<Doctor[]>([]);
+  const [leastBusyDoctors, setLeastBusyDoctors] = useState<Doctor[]>([]);
 
   useEffect(() => {
+    // Fetch top specialties
     api
       .getTopSpecialties()
       .then((response) => setTopSpecialties(response.data))
-      .catch((error) => console.error("Error fetching top specialties:", error))
+      .catch((error) =>
+        console.error("Error fetching top specialties:", error)
+      );
 
+    // Fetch top doctors with many patients
     api
-      .getTopDoctors()
+      .getDoctorsByPatientCount()
       .then((response) => setTopDoctors(response.data))
-      .catch((error) => console.error("Error fetching top doctors:", error))
+      .catch((error) => console.error("Error fetching top doctors:", error));
 
+    // Fetch least busy doctors
     api
-      .getLeastBusyDoctors()
+      .getDoctorsWithLeastClients()
       .then((response) => setLeastBusyDoctors(response.data))
-      .catch((error) => console.error("Error fetching least busy doctors:", error))
-  }, [])
+      .catch((error) =>
+        console.error("Error fetching least busy doctors:", error)
+      );
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -47,7 +55,7 @@ const Statistics: React.FC = () => {
         <CardContent>
           {topDoctors.map((doctor, index) => (
             <div key={index} className="mb-2">
-              {doctor}
+              {doctor.name}
             </div>
           ))}
         </CardContent>
@@ -60,14 +68,13 @@ const Statistics: React.FC = () => {
         <CardContent>
           {leastBusyDoctors.map((doctor, index) => (
             <div key={index} className="mb-2">
-              {doctor}
+              {doctor.name}
             </div>
           ))}
         </CardContent>
       </Card>
     </div>
-  )
-}
+  );
+};
 
-export default Statistics
-
+export default Statistics;

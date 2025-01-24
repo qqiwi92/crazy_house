@@ -5,7 +5,7 @@ To run backend
 
 ```bash
 
-py main.py
+py api.py
 ```
 
 to run frontend
