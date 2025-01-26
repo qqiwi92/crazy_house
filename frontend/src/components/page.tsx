@@ -199,11 +199,7 @@ function ClinicManagement() {
                     <TableCell className="w-full">{doctor.room}</TableCell>
                     <TableCell className="w-full">{doctor.specialty}</TableCell>
                     <TableCell className="w-full">
-                      {doctor.patients.map((patient, index) => (
-                        <div key={index}>
-                          {patient.last_name}: {patient.diagnosis}
-                        </div>
-                      ))}
+                      {doctor.patients.length}
                     </TableCell>
                     <TableCell className="w-full">
                       <Button
@@ -258,7 +254,7 @@ function ClinicManagement() {
               required
             />
             <div>
-              <Label>Пациенты</Label>
+              <Label className="mr-2">Пациенты</Label>
               {newDoctor.patients.map((patient, index) => (
                 <Card key={index} className="mt-2">
                   <CardContent className="pt-4">
@@ -290,10 +286,10 @@ function ClinicManagement() {
                       <Button
                         type="button"
                         variant="destructive"
-                        size="icon"
+                        size="icon" className="min-w-10"
                         onClick={() => removePatient(index)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className=" w-10 text-xl" />
                       </Button>
                     </div>
                   </CardContent>
