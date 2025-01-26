@@ -115,32 +115,21 @@ function ClinicManagement() {
     },
   });
 
-  const { data: doctorsBySpecialty, refetch: refetchBySpecialty } = useQuery({
-    queryKey: ["doctorsBySpecialty", searchSpecialty],
-    queryFn: () =>
-      fetch(`http://localhost:5000/doctors/specialty/${searchSpecialty}`).then(
-        (res) => res.json()
-      ),
-    enabled: false,
-  });
+  const filterDoctorsBySpecialty = (specialty: string) => {
+    return doctors?.filter((doctor) => doctor.specialty.toLowerCase().includes(specialty.toLowerCase())) || []
+  }
 
-  const { data: doctorsByPatient, refetch: refetchByPatient } = useQuery({
-    queryKey: ["doctorsByPatient", searchPatient],
-    queryFn: () =>
-      fetch(`http://localhost:5000/doctors/patient/${searchPatient}`).then(
-        (res) => res.json()
-      ),
-    enabled: false,
-  });
+  const filterDoctorsByPatient = (patientSurname: string) => {
+    return (
+      doctors?.filter((doctor) =>
+        doctor.patients.some((patient) => patient.last_name.toLowerCase().includes(patientSurname.toLowerCase())),
+      ) || []
+    )
+  }
 
-  const { data: doctorsByRoom, refetch: refetchByRoom } = useQuery({
-    queryKey: ["doctorsByRoom", searchRoom],
-    queryFn: () =>
-      fetch(`http://localhost:5000/doctors/room/${searchRoom}`).then((res) =>
-        res.json()
-      ),
-    enabled: false,
-  });
+  const filterDoctorsByRoom = (room: string) => {
+    return doctors?.filter((doctor) => doctor.room.toString() === room) || []
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,6 +147,7 @@ function ClinicManagement() {
       patients: [...prev.patients, { last_name: "", diagnosis: "" }],
     }));
   };
+  const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([])
 
   const removePatient = (index: number) => {
     setNewDoctor((prev) => ({
@@ -326,65 +316,31 @@ function ClinicManagement() {
 
       <div className="space-y-8">
         <div>
-          <h3 className="text-xl font-semibold mb-2">
-            Поиск врачей по специальности
-          </h3>
+        <h3 className="text-xl font-semibold mb-2">Поиск врачей по специальности</h3>
           <div className="flex gap-2 mb-4">
             <Input
               placeholder="Введите специальность"
               value={searchSpecialty}
               onChange={(e) => setSearchSpecialty(e.target.value)}
             />
-            <Button onClick={() => refetchBySpecialty()}>Поиск</Button>
+            <Button onClick={() => setFilteredDoctors(filterDoctorsBySpecialty(searchSpecialty))}>Поиск</Button>
           </div>
-          {doctorsBySpecialty && (
+          {filteredDoctors.length > 0 && (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Фамилия</TableHead>
                   <TableHead>Имя</TableHead>
                   <TableHead>Кабинет</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {doctorsBySpecialty.map((doctor: Doctor) => (
-                  <TableRow key={`${doctor.surname}-${doctor.name}`}>
-                    <TableCell>{doctor.surname}</TableCell>
-                    <TableCell>{doctor.name}</TableCell>
-                    <TableCell>{doctor.room}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </div>
-
-        <div>
-          <h3 className="text-xl font-semibold mb-2">
-            Поиск врачей по пациенту
-          </h3>
-          <div className="flex gap-2 mb-4">
-            <Input
-              placeholder="Введите фамилию пациента"
-              value={searchPatient}
-              onChange={(e) => setSearchPatient(e.target.value)}
-            />
-            <Button onClick={() => refetchByPatient()}>Поиск</Button>
-          </div>
-          {doctorsByPatient && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Фамилия</TableHead>
-                  <TableHead>Имя</TableHead>
                   <TableHead>Специальность</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {doctorsByPatient.map((doctor: Doctor) => (
+                {filteredDoctors.map((doctor: Doctor) => (
                   <TableRow key={`${doctor.surname}-${doctor.name}`}>
                     <TableCell>{doctor.surname}</TableCell>
                     <TableCell>{doctor.name}</TableCell>
+                    <TableCell>{doctor.room}</TableCell>
                     <TableCell>{doctor.specialty}</TableCell>
                   </TableRow>
                 ))}
@@ -394,31 +350,65 @@ function ClinicManagement() {
         </div>
 
         <div>
-          <h3 className="text-xl font-semibold mb-2">
-            Поиск врачей по кабинету
-          </h3>
+          <h3 className="text-xl font-semibold mb-2">Поиск врачей по пациенту</h3>
+          <div className="flex gap-2 mb-4">
+            <Input
+              placeholder="Введите фамилию пациента"
+              value={searchPatient}
+              onChange={(e) => setSearchPatient(e.target.value)}
+            />
+            <Button onClick={() => setFilteredDoctors(filterDoctorsByPatient(searchPatient))}>Поиск</Button>
+          </div>
+          {filteredDoctors.length > 0 && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Фамилия</TableHead>
+                  <TableHead>Имя</TableHead>
+                  <TableHead>Кабинет</TableHead>
+                  <TableHead>Специальность</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredDoctors.map((doctor: Doctor) => (
+                  <TableRow key={`${doctor.surname}-${doctor.name}`}>
+                    <TableCell>{doctor.surname}</TableCell>
+                    <TableCell>{doctor.name}</TableCell>
+                    <TableCell>{doctor.room}</TableCell>
+                    <TableCell>{doctor.specialty}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+
+        <div>
+          <h3 className="text-xl font-semibold mb-2">Поиск врачей по кабинету</h3>
           <div className="flex gap-2 mb-4">
             <Input
               placeholder="Введите номер кабинета"
               value={searchRoom}
               onChange={(e) => setSearchRoom(e.target.value)}
             />
-            <Button onClick={() => refetchByRoom()}>Поиск</Button>
+            <Button onClick={() => setFilteredDoctors(filterDoctorsByRoom(searchRoom))}>Поиск</Button>
           </div>
-          {doctorsByRoom && (
+          {filteredDoctors.length > 0 && (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Фамилия</TableHead>
                   <TableHead>Имя</TableHead>
+                  <TableHead>Кабинет</TableHead>
                   <TableHead>Специальность</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {doctorsByRoom.map((doctor: Doctor) => (
+                {filteredDoctors.map((doctor: Doctor) => (
                   <TableRow key={`${doctor.surname}-${doctor.name}`}>
                     <TableCell>{doctor.surname}</TableCell>
                     <TableCell>{doctor.name}</TableCell>
+                    <TableCell>{doctor.room}</TableCell>
                     <TableCell>{doctor.specialty}</TableCell>
                   </TableRow>
                 ))}
@@ -428,5 +418,6 @@ function ClinicManagement() {
         </div>
       </div>
     </div>
-  );
+  )
 }
+
