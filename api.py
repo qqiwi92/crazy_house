@@ -90,6 +90,10 @@ def get_doctors_with_least_clients():
     return jsonify(doctors_with_least_clients(load_data()))
 
 
+@app.route("/doctors", methods=["GET"])
+def get_all_doctors():
+    return jsonify(load_data())
+
 @app.route("/doctors/add", methods=["POST"])
 def add_new_doctor():
     data = load_data()
